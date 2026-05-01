@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stopwatch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1C3253;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+      min-width: 340px;
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #1C3253;
+      margin-bottom: 32px;
+      opacity: 0.5;
+    }
+
+    .display {
+      font-size: 72px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: #1C3253;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .ms {
+      font-size: 32px;
+      color: #1C3253;
+      opacity: 0.4;
+      font-weight: 300;
+      margin-bottom: 48px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    button {
+      padding: 14px 32px;
+      border: none;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      letter-spacing: 0.04em;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    #btn-start {
+      background: #E46C0A;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(228, 108, 10, 0.4);
+      min-width: 120px;
+    }
+
+    #btn-start:hover { box-shadow: 0 6px 20px rgba(228, 108, 10, 0.5); }
+
+    #btn-reset {
+      background: #f0f0f0;
+      color: #1C3253;
+    }
+
+    #btn-reset:hover { background: #e4e4e4; }
+
+    .laps {
+      margin-top: 40px;
+      max-height: 200px;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .laps:empty { display: none; }
+
+    .lap-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      color: #1C3253;
+    }
+
+    .lap-item .lap-num { opacity: 0.4; }
+    .lap-item .lap-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    #btn-lap {
+      background: #f0f0f0;
+      color: #1C3253;
+    }
+
+    #btn-lap:hover { background: #e4e4e4; }
+    #btn-lap:disabled { opacity: 0.3; cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title">Stopwatch</div>
+    <div class="display" id="display">00:00</div>
+    <div class="ms" id="display-ms">.00</div>
+    <div class="controls">
+      <button id="btn-start">Start</button>
+      <button id="btn-lap" disabled>Lap</button>
+      <button id="btn-reset">Reset</button>
+    </div>
+    <div class="laps" id="laps"></div>
+  </div>
+
+  <script>
+    let startTime = 0;
+    let elapsed = 0;
+    let rafId = null;
+    let running = false;
+    let lapCount = 0;
+    let lastLapElapsed = 0;
+
+    const display = document.getElementById('display');
+    const displayMs = document.getElementById('display-ms');
+    const btnStart = document.getElementById('btn-start');
+    const btnLap = document.getElementById('btn-lap');
+    const btnReset = document.getElementById('btn-reset');
+    const lapsEl = document.getElementById('laps');
+
+    function pad(n, len) {
+      return String(Math.floor(n)).padStart(len, '0');
+    }
+
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const centis = Math.floor((ms % 1000) / 10);
+      return {
+        main: `${pad(minutes, 2)}:${pad(seconds, 2)}`,
+        ms: `.${pad(centis, 2)}`
+      };
+    }
+
+    function render() {
+      const t = formatTime(elapsed);
+      display.textContent = t.main;
+      displayMs.textContent = t.ms;
+    }
+
+    function tick() {
+      elapsed = Date.now() - startTime;
+      render();
+      rafId = requestAnimationFrame(tick);
+    }
+
+    btnStart.addEventListener('click', () => {
+      if (!running) {
+        startTime = Date.now() - elapsed;
+        rafId = requestAnimationFrame(tick);
+        running = true;
+        btnStart.textContent = 'Stop';
+        btnStart.style.background = '#1C3253';
+        btnStart.style.boxShadow = '0 4px 16px rgba(28,50,83,0.3)';
+        btnLap.disabled = false;
+      } else {
+        cancelAnimationFrame(rafId);
+        running = false;
+        btnStart.textContent = 'Start';
+        btnStart.style.background = '#E46C0A';
+        btnStart.style.boxShadow = '0 4px 16px rgba(228,108,10,0.4)';
+        btnLap.disabled = true;
+      }
+    });
+
+    btnLap.addEventListener('click', () => {
+      if (!running) return;
+      lapCount++;
+      const lapTime = elapsed - lastLapElapsed;
+      lastLapElapsed = elapsed;
+      const t = formatTime(lapTime);
+      const item = document.createElement('div');
+      item.className = 'lap-item';
+      item.innerHTML = `<span class="lap-num">Lap ${lapCount}</span><span class="lap-time">${t.main}${t.ms}</span>`;
+      lapsEl.prepend(item);
+    });
+
+    btnReset.addEventListener('click', () => {
+      cancelAnimationFrame(rafId);
+      running = false;
+      elapsed = 0;
+      lapCount = 0;
+      lastLapElapsed = 0;
+      render();
+      lapsEl.innerHTML = '';
+      btnStart.textContent = 'Start';
+      btnStart.style.background = '#E46C0A';
+      btnStart.style.boxShadow = '0 4px 16px rgba(228,108,10,0.4)';
+      btnLap.disabled = true;
+    });
+  </script>
+</body>
+</html>
